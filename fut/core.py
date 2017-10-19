@@ -324,7 +324,7 @@ class Core(object):
             self.r.headers = headers_ios.copy()  # i'm ios phone now ;-)
         else:
             self.r.headers = headers.copy()  # i'm chrome browser now ;-)
-        if platform == 'pc':
+        if platform == 'pc':  # TODO: get this from shards
             game_sku = 'FFA18PCC'
         elif platform == 'xbox':
             game_sku = 'FFA18XBO'
@@ -334,7 +334,7 @@ class Core(object):
             game_sku = 'FFA18PS3'  # not tested
         elif platform == 'ps4':
             game_sku = 'FFA18PS4'
-            platform = 'ps3'  # ps4 not available?
+            # platform = 'ps3'  # ps4 not available in shards
         else:
             raise FutError(reason='Wrong platform. (Valid ones are pc/xbox/xbox360/ps3/ps4)')
         # if self.r.get(self.urls['main_site']+'/fifa/api/isUserLoggedIn', timeout=self.timeout).json()['isLoggedIn']:
@@ -397,7 +397,7 @@ class Core(object):
                 raise FutError(reason=failedReason)
 
             if 'var redirectUri' in rc.text:
-                rc = self.r.post(rc.url, {'_eventId': 'end'})  # initref param was missing here
+                rc = self.r.get(rc.url, params={'_eventId': 'end'})  # initref param was missing here
 
             '''  # pops out only on first launch
             if 'FIFA Ultimate Team</strong> needs to update your Account to help protect your gameplay experience.' in rc:  # request email/sms code
@@ -467,6 +467,7 @@ class Core(object):
         self.fut_host = {
             'pc': 'utas.external.s2.fut.ea.com:443',
             'ps3': 'utas.external.s2.fut.ea.com:443',
+            'ps4': 'utas.external.s2.fut.ea.com:443',
             'xbox': 'utas.external.s3.fut.ea.com:443',
             # 'ios': 'utas.external.fut.ea.com:443',
             # 'and': 'utas.external.fut.ea.com:443'
@@ -542,7 +543,7 @@ class Core(object):
         self.r.headers['Easw-Session-Data-Nucleus-Id'] = self.nucleus_id
         rc = self.r.get('https://%s/ut/game/fifa18/phishing/question' % self.fut_host, params={'_': self._}, timeout=self.timeout).json()
         self._ += 1
-        if rc.get('code') == 458:
+        if rc.get('code') == '458':
             raise Captcha()
         elif rc.get('string') != 'Already answered question':
             params = {'answer': secret_answer_hash}
@@ -631,7 +632,6 @@ class Core(object):
                 raise Captcha()
             elif rc.status_code == 401 and rcj['reason'] == 'expired session':
                 raise ExpiredSession(rcj['code'], rcj['reason'], rcj['message'])
-
             # it makes sense to print headers, status_code, etc. only when we don't know what happened
             print(rc.headers)
             print(rc.status_code)
@@ -826,8 +826,9 @@ class Core(object):
 
     def search(self, ctype, level=None, category=None, assetId=None, defId=None,
                min_price=None, max_price=None, min_buy=None, max_buy=None,
-               league=None, club=None, position=None, nationality=None, rare=False,
-               playStyle=None, start=0, page_size=16):
+               league=None, club=None, position=None, zone=None, nationality=None,
+               rare=False, playStyle=None, start=0, page_size=16,
+               fast=False):
         """Prepare search request, send and return parsed data as a dict.
 
         :param ctype: [development / ? / ?] Card type.
@@ -856,7 +857,7 @@ class Core(object):
         # pinEvents
         if start == 0:
             events = [self.pin.event('page_view', 'Transfer Market Search')]
-            self.pin.send(events)
+            self.pin.send(events, fast=fast)
 
         # if start > 0 and page_size == 16:
         #     if not self.emulate:  # wbeapp
@@ -883,16 +884,17 @@ class Core(object):
         if league:      params['leag'] = league
         if club:        params['team'] = club
         if position:    params['pos'] = position
+        if zone:        params['zone'] = zone
         if nationality: params['nat'] = nationality
         if rare:        params['rare'] = 'SP'
         if playStyle:   params['playStyle'] = playStyle
 
-        rc = self.__request__(method, url, params=params)  # TODO: catch 426 429 512 521 - temporary ban
+        rc = self.__request__(method, url, params=params, fast=fast)  # TODO: catch 426 429 512 521 - temporary ban
 
         # pinEvents
         if start == 0:
             events = [self.pin.event('page_view', 'Transfer Market Results - List View')]
-            self.pin.send(events)
+            self.pin.send(events, fast=fast)
 
         return [itemParse(i) for i in rc.get('auctionInfo', ())]
 

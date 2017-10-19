@@ -4,7 +4,22 @@ Changelog
 ---------
 
 
-0.3.1 (2017-10-??)
+0.3.4 (2017-10-18)
+^^^^^^^^^^^^^^^^^^
+
+* disable debug info
+
+0.3.3 (2017-10-18)
+^^^^^^^^^^^^^^^^^^
+
+* correct pin values (#314)
+
+0.3.2 (2017-10-18)
+^^^^^^^^^^^^^^^^^^
+
+* fix syntax error
+
+0.3.1 (2017-10-18)
 ^^^^^^^^^^^^^^^^^^
 
 * pinEvents: random timestamp with delay & option request before sending data

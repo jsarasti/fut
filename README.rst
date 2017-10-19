@@ -14,8 +14,8 @@ fut
 .. image:: https://travis-ci.org/futapi/fut.png?branch=master
     :target: https://travis-ci.org/futapi/fut
 
-.. image:: https://codecov.io/github/oczkers/fut/coverage.svg?branch=master
-    :target: https://codecov.io/github/oczkers/fut
+.. image:: https://codecov.io/github/futapi/fut/coverage.svg?branch=master
+    :target: https://codecov.io/github/futapi/fut
     :alt: codecov.io
 
 .. image:: https://api.codacy.com/project/badge/Grade/f599808fba2447c98253cf44cca86a1b
@@ -95,6 +95,7 @@ Optional parameters:
 - league: [int] League id.
 - club: [int] Club id.
 - position: [int?/str?] Position.
+- zone: ['attacker'/'?'] zone.
 - nationality: [int] Nation id.
 - rare: [boolean] True for searching special cards.
 - playStyle: [str?] playStyle.
