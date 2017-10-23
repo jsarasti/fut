@@ -567,11 +567,6 @@ class Core(object):
         if self._usermassinfo['settings']['configs'][2]['value'] == 0:
             raise FutError(reason='Transfer market is probably disabled on this account.')  # if tradingEnabled = 0
 
-        # pinEvents - boot_end
-        events = [self.pin.event('connection'),
-                  self.pin.event('boot_end', end_reason='normal')]
-        self.pin.send(events)
-
         # size of piles
         piles = self.pileSize()
         self.tradepile_size = piles['tradepile']
@@ -581,6 +576,11 @@ class Core(object):
 
         # pinEvents - home screen
         events = [self.pin.event('page_view', 'Hub - Home')]
+        self.pin.send(events)
+
+        # pinEvents - boot_end
+        events = [self.pin.event('connection'),
+                  self.pin.event('boot_end', end_reason='normal')]
         self.pin.send(events)
 
         self.keepalive()  # credits
@@ -619,7 +619,6 @@ class Core(object):
             rc = self.r.delete(url, data=data, params=params, timeout=self.timeout)
         self.logger.debug("response: {0}".format(rc.content))
         if not rc.ok:  # status != 200
-            rcj = rc.json()
             if rc.status_code == 429:
                 raise FutError('429 Too many requests')
             elif rc.status_code == 426:
@@ -628,48 +627,23 @@ class Core(object):
                 raise FutError('512/521 Temporary ban or just too many requests.')
             elif rc.status_code == 461:
                 raise PermissionDenied(461)  # You are not allowed to bid on this trade TODO: add code, reason etc
+            elif rc.status_code == 460:
+                raise PermissionDenied(460)
             elif rc.status_code == 458:
                 raise Captcha()
-            elif rc.status_code == 401 and rcj['reason'] == 'expired session':
-                raise ExpiredSession(rcj['code'], rcj['reason'], rcj['message'])
+            elif rc.status_code == 401:
+                print(rc.content)
+                raise ExpiredSession()
             # it makes sense to print headers, status_code, etc. only when we don't know what happened
             print(rc.headers)
             print(rc.status_code)
             print(rc.cookies)
             print(rc.content)
             raise UnknownError(rc.content)
-        # this whole error handling section might be moot now since they no longer return status_code = 200 when there's an error
-        # TODO: determine which of the errors (500, 489, 465, 461, 459, 401, 409) should actually be handled in the block above
         if rc.text == '':
             rc = {}
         else:
-            captcha_token = rc.headers.get('Proxy-Authorization', '').replace('captcha=', '')  # captcha token (always AAAA ?)
             rc = rc.json()
-            # error control
-            if 'code' and 'reason' in rc:  # error
-                err_code = rc['code']
-                err_reason = rc['reason']
-                err_string = rc.get('string')  # "human readable" reason?
-                if err_reason == 'expired session':  # code?
-                    raise ExpiredSession(err_code, err_reason, err_string)
-                elif err_code == '500' or err_string == 'Internal Server Error (ut)':
-                    raise InternalServerError(err_code, err_reason, err_string)
-                elif err_code == '489' or err_string == 'Feature Disabled':
-                    raise FeatureDisabled(err_code, err_reason, err_string)
-                elif err_code == '465' or err_string == 'No User':
-                    raise NoUltimateTeam(err_code, err_reason, err_string)
-                elif err_code == '461' or err_string == 'Permission Denied':
-                    raise PermissionDenied(err_code, err_reason, err_string)
-                elif err_code == '459' or err_string == 'Captcha Triggered':
-                    # img = self.r.get(self.urls['fut_captcha_img'], params={'_': int(time.time()*1000), 'token': captcha_token}, timeout=self.timeout).content  # doesnt work - check headers
-                    img = None
-                    raise Captcha(err_code, err_reason, err_string, captcha_token, img)
-                elif err_code == '401' or err_string == 'Unauthorized':
-                    raise Unauthorized(err_code, err_reason, err_string)
-                elif err_code == '409' or err_string == 'Conflict':
-                    raise Conflict(err_code, err_reason, err_string)
-                else:
-                    raise UnknownError(rc.__str__())
             if 'credits' in rc and rc['credits']:
                 self.credits = rc['credits']
         self.saveSession()

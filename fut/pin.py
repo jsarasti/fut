@@ -48,7 +48,7 @@ class Pin(object):
         self.custom = {"networkAccess": "W"}  # wifi?
         # TODO?: full boot process when there is no session (boot start)
 
-        self.custom['service_plat'] = platform
+        self.custom['service_plat'] = platform[:3]
         self.s = 4  # event id  |  3 before "was sent" without session/persona/nucleus id so we can probably omit
 
     def __ts(self):
@@ -64,9 +64,7 @@ class Pin(object):
                          "pidm": {"nucleus": self.nucleus_id},
                          "didm": {"uuid": "0"},  # what is it?
                          "ts_event": self.__ts(),
-                         "en": en},
-                'userid': self.persona_id,  # not needed before session?
-                'type': 'utas'}  # not needed before session?
+                         "en": en}}
         if self.dob:  # date of birth yyyy-mm
             data['core']['dob'] = self.dob
         if pgid:
@@ -82,7 +80,10 @@ class Pin(object):
         if end_reason:
             data['end_reason'] = end_reason
 
-        if en == 'page_view':
+        if en == 'login':
+            data['type'] = 'utas'
+            data['userid'] = self.persona_id
+        elif en == 'page_view':
             data['type'] = 'menu'
 
         self.s += 1  # bump event id
