@@ -122,6 +122,8 @@ def itemParse(item_data, full=True):
             'nation':           item_data['itemData'].get('nation'),  # nation_id?
             'year':             item_data['itemData'].get('resourceGameYear'),  # alias
             'resourceGameYear': item_data['itemData'].get('resourceGameYear'),
+            'marketDataMinPrice': item_data['itemData'].get('marketDataMinPrice'),
+            'marketDataMaxPrice': item_data['itemData'].get('marketDataMaxPrice'),
             'count':            item_data.get('count'),  # consumables only (?)
             'untradeableCount': item_data.get('untradeableCount'),  # consumables only (?)
         })
@@ -272,6 +274,7 @@ def playstyles(year=2018, timeout=timeout):
 class Core(object):
     def __init__(self, email, passwd, secret_answer, platform='pc', code=None, totp=None, sms=False, emulate=None, debug=False, cookies=cookies_file, timeout=timeout, delay=delay, proxies=None):
         self.credits = 0
+        self.duplicates = []
         self.cookies_file = cookies  # TODO: map self.cookies to requests.Session.cookies?
         self.timeout = timeout
         self.delay = delay
@@ -646,6 +649,8 @@ class Core(object):
             rc = rc.json()
             if 'credits' in rc and rc['credits']:
                 self.credits = rc['credits']
+            if 'duplicateItemIdList' in rc:
+                self.duplicates = [i['itemId'] for i in rc['duplicateItemIdList']]
         self.saveSession()
         return rc
 
@@ -901,12 +906,14 @@ class Core(object):
         else:
             return False
 
-    def club(self, sort='desc', ctype='player', defId='', start=0, count=91):
+    def club(self, sort='desc', ctype='player', defId='', start=0, count=91, level=None):
         """Return items in your club, excluding consumables."""
         method = 'GET'
         url = 'club'
 
         params = {'sort': sort, 'type': ctype, 'defId': defId, 'start': start, 'count': count}
+        if level:
+            params['level'] = level
         rc = self.__request__(method, url, params=params)
 
         # pinEvent
@@ -1034,12 +1041,12 @@ class Core(object):
 
         return [itemParse({'itemData': i}) for i in rc.get('itemData', ())]
 
-    def sell(self, item_id, bid, buy_now=10000, duration=3600):
+    def sell(self, item_id, bid, buy_now, duration=3600):
         """Start auction. Returns trade_id.
 
         :params item_id: Item id.
         :params bid: Stard bid.
-        :params buy_now: Buy now price (Default: 10000).
+        :params buy_now: Buy now price.
         :params duration: Auction duration in seconds (Default: 3600).
         """
         method = 'POST'
@@ -1230,6 +1237,25 @@ class Core(object):
     #     url = '{0}/{1}'.format(self.urls['fut']['ActiveMessage'], message_id)
     #     self.__delete__(url)
 
+    def buyPack(self, pack_id, currency='COINS'):
+        # TODO: merge with openPack
+        method = 'POST'
+        url = 'purchased/items'
+
+        # pinEvents
+        events = [self.pin.event('page_view', 'Hub - Store')]
+        self.pin.send(events)
+
+        data = {'packId': pack_id,
+                'currency': currency}
+        rc = self.__request__(method, url, data=json.dumps(data))
+
+        # pinEvents
+        # events = [self.pin.event('page_view', 'Unassigned Items - List View')]
+        # self.pin.send(events)
+
+        return rc  # TODO: parse response
+
     def openPack(self, pack_id):
         method = 'POST'
         url = 'purchased/items'
@@ -1245,4 +1271,17 @@ class Core(object):
         url = 'sbs/sets'
 
         rc = self.__request__(method, url)
+
+        # pinEvents
+        events = [self.pin.event('page_view', 'Hub - SBC')]
+        self.pin.send(events)
+
         return rc  # TODO?: parse
+
+    def objectives(self, scope='all'):
+        method = 'GET'
+        url = 'user/dynamicobjectives'
+
+        params = {'scope': scope}
+        rc = self.__request__(method, url, params=params)
+        return rc
