@@ -633,17 +633,12 @@ class Core(object):
             elif rc.status_code == 460:
                 raise PermissionDenied(460)
             elif rc.status_code == 458:
-                print(rc.headers)
-                print(rc.status_code)
-                print(rc.cookies)
-                print(rc.content)
                 # pinEvents
                 events = [self.pin.event('error')]
                 self.pin.send(events)
                 raise Captcha()
             elif rc.status_code == 401:
                 # TODO?: send pinEvent https://gist.github.com/oczkers/7e5de70915b87262ddea961c49180fd6
-                print(rc.content)
                 raise ExpiredSession()
             # it makes sense to print headers, status_code, etc. only when we don't know what happened
             print(rc.headers)
