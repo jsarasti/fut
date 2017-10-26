@@ -633,8 +633,16 @@ class Core(object):
             elif rc.status_code == 460:
                 raise PermissionDenied(460)
             elif rc.status_code == 458:
+                print(rc.headers)
+                print(rc.status_code)
+                print(rc.cookies)
+                print(rc.content)
+                # pinEvents
+                events = [self.pin.event('error')]
+                self.pin.send(events)
                 raise Captcha()
             elif rc.status_code == 401:
+                # TODO?: send pinEvent https://gist.github.com/oczkers/7e5de70915b87262ddea961c49180fd6
                 print(rc.content)
                 raise ExpiredSession()
             # it makes sense to print headers, status_code, etc. only when we don't know what happened
@@ -868,7 +876,7 @@ class Core(object):
         if rare:        params['rare'] = 'SP'
         if playStyle:   params['playStyle'] = playStyle
 
-        rc = self.__request__(method, url, params=params, fast=fast)  # TODO: catch 426 429 512 521 - temporary ban
+        rc = self.__request__(method, url, params=params, fast=fast)
 
         # pinEvents
         if start == 0:
@@ -998,7 +1006,7 @@ class Core(object):
         if not isinstance(trade_id, (list, tuple)):
             trade_id = (trade_id,)
         trade_id = (str(i) for i in trade_id)
-        params = {'itemdata': 'true', 'tradeIds': ','.join(trade_id)}  # multiple trade_ids not tested
+        params = {'tradeIds': ','.join(trade_id)}  # multiple trade_ids not tested
         rc = self.__request__(method, url, params=params)
         return [itemParse(i, full=False) for i in rc['auctionInfo']]
 
@@ -1041,7 +1049,7 @@ class Core(object):
 
         return [itemParse({'itemData': i}) for i in rc.get('itemData', ())]
 
-    def sell(self, item_id, bid, buy_now, duration=3600):
+    def sell(self, item_id, bid, buy_now, duration=3600, fast=False):
         """Start auction. Returns trade_id.
 
         :params item_id: Item id.
@@ -1055,6 +1063,8 @@ class Core(object):
         # TODO: auto send to tradepile
         data = {'buyNowPrice': buy_now, 'startingBid': bid, 'duration': duration, 'itemData': {'id': item_id}}
         rc = self.__request__(method, url, data=json.dumps(data), params={'sku_a': self.sku_a})
+        if not fast:  # tradeStatus check like webapp do
+            self.tradeStatus(rc['id'])
         return rc['id']
 
     def quickSell(self, item_id):
