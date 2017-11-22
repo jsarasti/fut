@@ -77,7 +77,7 @@ def itemParse(item_data, full=True):
         'tradeState':        item_data.get('tradeState'),
         'bidState':          item_data.get('bidState'),
         'startingBid':       item_data.get('startingBid'),
-        'id':                item_data['itemData']['id'],
+        'id':                item_data.get('itemData', {'id': None})['id'],
         'offers':            item_data.get('offers'),
         'currentBid':        item_data.get('currentBid'),
         'expires':           item_data.get('expires'),  # seconds left
@@ -127,6 +127,7 @@ def itemParse(item_data, full=True):
             'marketDataMaxPrice': item_data['itemData'].get('marketDataMaxPrice'),
             'count':            item_data.get('count'),  # consumables only (?)
             'untradeableCount': item_data.get('untradeableCount'),  # consumables only (?)
+            'loans':            item_data.get('loans'),
         })
         if 'item' in item_data:  # consumables only (?)
             return_data.update({
@@ -457,7 +458,18 @@ class Core(object):
         self.sku_a = 'FFT18'
 
         # === launch futweb
-        # TODO!: move to separate method __launch__, do not call login when not necessary
+        params = {'accessToken': self.access_token,
+                  'client_id': 'FIFA-18-WEBCLIENT',
+                  'response_type': 'token',
+                  'display': 'web2/login',
+                  'locale': 'en_US',
+                  'redirect_uri': 'https://www.easports.com/fifa/ultimate-team/web-app/auth.html',
+                  'scope': 'basic.identity offline signin'}
+        rc = self.r.get('https://accounts.ea.com/connect/auth', params=params)
+        rc = re.match('https://www.easports.com/fifa/ultimate-team/web-app/auth.html#access_token=(.+?)&token_type=(.+?)&expires_in=[0-9]+', rc.url)
+        self.access_token = rc.group(1)
+        self.token_type = rc.group(2)
+
         # self.r.headers['Referer'] = 'https://www.easports.com/fifa/ultimate-team/web-app/auth.html'
         rc = self.r.get('https://www.easports.com/fifa/ultimate-team/web-app/', timeout=self.timeout).text
         # year = re.search('fut_year = "([0-9]{4}])"', rc).group(1)  # use this to construct urls, sku etc.
@@ -554,11 +566,6 @@ class Core(object):
             raise UnknownError(rc.__str__())
         self.r.headers['X-UT-SID'] = self.sid = rc['sid']
 
-        # init pin
-        self.pin = Pin(sid=self.sid, nucleus_id=self.nucleus_id, persona_id=self.persona_id, dob=self.dob[:-3], platform=platform)
-        events = [self.pin.event('login', status='success')]
-        self.pin.send(events)
-
         # validate (secret question)
         self.r.headers['Easw-Session-Data-Nucleus-Id'] = self.nucleus_id
         rc = self.r.get('https://%s/ut/game/fifa18/phishing/question' % self.fut_host, params={'_': self._}, timeout=self.timeout).json()
@@ -579,6 +586,11 @@ class Core(object):
             self._ += 1
         self.r.headers['X-UT-PHISHING-TOKEN'] = self.token = rc['token']
 
+        # init pin
+        self.pin = Pin(sid=self.sid, nucleus_id=self.nucleus_id, persona_id=self.persona_id, dob=self.dob[:-3], platform=platform)
+        events = [self.pin.event('login', status='success')]
+        self.pin.send(events)
+
         # get basic user info
         # TODO: parse usermassinfo and change _usermassinfo to userinfo
         # TODO?: usermassinfo as separate method && ability to refresh piles etc.
@@ -593,13 +605,13 @@ class Core(object):
         self.watchlist_size = piles['watchlist']
 
         # refresh token
-        params = {'response_type': 'token',
-                  'redirect_uri': 'nucleus:rest',
-                  'prompt': 'none',
-                  'client_id': 'ORIGIN_JS_SDK'}
-        rc = self.r.get('https://accounts.ea.com/connect/auth', params=params).json()
-        self.access_token = rc['access_token']
-        self.token_type = rc['token_type']
+        # params = {'response_type': 'token',
+        #           'redirect_uri': 'nucleus:rest',
+        #           'prompt': 'none',
+        #           'client_id': 'ORIGIN_JS_SDK'}
+        # rc = self.r.get('https://accounts.ea.com/connect/auth', params=params).json()
+        # self.access_token = rc['access_token']
+        # self.token_type = rc['token_type']
         # expired_in
 
         self.saveSession()
@@ -652,6 +664,8 @@ class Core(object):
             if rc.status_code == 401:
                 # TODO?: send pinEvent https://gist.github.com/oczkers/7e5de70915b87262ddea961c49180fd6
                 raise ExpiredSession()
+            elif rc.status_code == 409:
+                raise Conflict()
             elif rc.status_code == 426:
                 raise FutError('426 Too many requests')
             elif rc.status_code == 429:
@@ -955,10 +969,12 @@ class Core(object):
         if start == 0:
             if ctype == 'player':
                 pgid = 'Club - Players - List View'
-            elif ctype == 'item':
+            elif ctype == 'staff':
+                pgid = 'Club - Staff - List View'
+            elif ctype in ('item', 'kit', 'ball', 'badge', 'stadium'):
                 pgid = 'Club - Club Items - List View'
-            else:  # TODO: THIS IS WRONG, detect all ctypes
-                pgid = 'Club - Club Items - List View'
+            # else:  # TODO: THIS IS probably WRONG, detect all ctypes
+            #     pgid = 'Club - Club Items - List View'
             events = [self.pin.event('page_view', pgid)]
             self.pin.send(events)
 
@@ -972,27 +988,21 @@ class Core(object):
         rc = self.__request__(method, url)
         return rc  # TODO?: parse
 
-    # def clubConsumables(self):
-    #     """Return all consumables stats in dictionary."""
-    #     rc = self.__get__(self.urls['fut']['ClubConsumableSearch'])  # or ClubConsumableStats?
-    #     consumables = {}
-    #     for i in rc:
-    #         if i['contextValue'] == 1:
-    #             level = 'gold'
-    #         elif i['contextValue'] == 2:
-    #             level = 'silver'
-    #         elif i['contextValue'] == 3:
-    #             level = 'bronze'
-    #         consumables[i['type']] = {'level': level,
-    #                                   'type': i['type'],  # need list of all types
-    #                                   'contextId': i['contextId'],  # dunno what is it
-    #                                   'count': i['typeValue']}
-    #     return consumables
+    def clubConsumables(self, fast=False):
+        """Return all consumables from club."""
+        method = 'GET'
+        url = 'club/consumables/development'
 
-    # def clubConsumablesDetails(self):
-    #     """Return all consumables details."""
-    #     rc = self.__get__('{0}{1}'.format(self.urls['fut']['ClubConsumableSearch'], '/development'))
-    #     return [{itemParse(i) for i in rc.get('itemData', ())}]
+        rc = self.__request__(method, url)
+
+        events = [self.pin.event('page_view', 'Hub - Club')]
+        self.pin.send(events, fast=fast)
+        events = [self.pin.event('page_view', 'Club - Consumables')]
+        self.pin.send(events, fast=fast)
+        events = [self.pin.event('page_view', 'Club - Consumables - List View')]
+        self.pin.send(events, fast=fast)
+
+        return [{itemParse(i) for i in rc.get('itemData', ())}]
 
     def squad(self, squad_id=0, persona_id=None):
         """Return a squad.
