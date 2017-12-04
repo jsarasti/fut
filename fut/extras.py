@@ -64,4 +64,4 @@ def futbinPrice(item_id, platform=None):
     else:
         price = max([xbox, ps, pc])
 
-    return price
+    return price, rc['ps']['updated']
