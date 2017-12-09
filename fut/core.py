@@ -74,6 +74,7 @@ def itemParse(item_data, full=True):
     # TODO: object
     # TODO: dynamically parse all data
     # TODO: make it less ugly
+    # ItemRareType={NONE:0,RARE:1,LOCK:2,TOTW:3,PURPLE:4,TOTY:5,RB:6,GREEN:7,ORANGE:8,PINK:9,TEAL:10,TOTS:11,LEGEND:12,WC:13,UNICEF:14,OLDIMOTM:15,FUTTY:16,STORYMODE:17,CHAMPION:18,CMOTM:19,IMOTM:20,OTW:21,HALLOWEEN:22,MOVEMBER:23,SBC:24,SBCP:25,PROMOA:26,PROMOB:27,AWARD:28,BDAY:30,UNITED:31,FUTMAS:32,RTRC:33,PTGS:34,FOF:35,MARQUEE:36,CHAMPIONSHIP:37,EUMOTM:38,TOTT:39,RRC:40,RRR:41}
     return_data = {
         'tradeId':           item_data.get('tradeId'),
         'buyNowPrice':       item_data.get('buyNowPrice'),
@@ -902,7 +903,7 @@ class Core(object):
     def search(self, ctype, level=None, category=None, assetId=None, defId=None,
                min_price=None, max_price=None, min_buy=None, max_buy=None,
                league=None, club=None, position=None, zone=None, nationality=None,
-               rare=False, playStyle=None, start=0, page_size=16,
+               rare=False, playStyle=None, start=0, page_size=36,
                fast=False):
         """Prepare search request, send and return parsed data as a dict.
 
@@ -998,10 +999,10 @@ class Core(object):
         while True:
             results = self.search(start=n, *args, **kwargs)
             # print(len(results))
-            if len(results) < 16:
+            if len(results) < 36:
                 yield results
             else:
-                n += 16
+                n += (36 - 1)  # don't ask me, that's what ea is doing
                 yield results
 
     def bid(self, trade_id, bid, fast=False):
@@ -1420,10 +1421,11 @@ class Core(object):
         url = 'activeMessage'
 
         rc = self.__request__(method, url)
-        try:
-            return rc['activeMessage']
-        except:
-            raise UnknownError('Invalid activeMessage response')  # is it even possible?
+        # try:
+        #     return rc['activeMessage']
+        # except:
+        #     raise UnknownError('Invalid activeMessage response')  # is it even possible?
+        return rc['activeMessage']
     #
     # def messageDelete(self, message_id):
     #     """Delete the specified message, by id.
