@@ -13,7 +13,17 @@ import requests
 def futheadPrice(item_id, year=18, platform=None):
     params = {'year': year,
               'id': item_id}
-    rc = requests.get('http://www.futhead.com/prices/api/', params=params).json()
+    rc = requests.get('http://www.futhead.com/prices/api/', params=params)
+    if rc.status_code == 524:  # connection timeout
+        return 0
+    try:
+        rc = rc.json()
+    except JSONDecodeError:
+        print('futhead response is not valid')
+        print(rc.status_code)
+        print(rc.url)
+        print(rc.content)
+        rc = {}
     if not rc:
         return 0
     rc = rc[str(item_id)]
@@ -56,3 +66,29 @@ def futbinPrice(item_id, platform=None):
         price = max([xbox, ps, pc])
 
     return price, rc['ps']['updated']
+
+
+# def futwizPrice(item_id, platform=None):  # item_id is different on this page
+#     if not platform or platform == 'xbox':
+#         rc = requests.get('https://www.futwiz.com/en/app/price_history_player', params={'p': item_id, 'h': '', 'c': 'xb'}).json()
+#         print(rc)
+#         if rc:
+#             xbox = rc[0][1]
+#         else:
+#             xbox = 0
+#     if not platform or platform == 'ps':
+#         rc = requests.get('https://www.futwiz.com/en/app/price_history_player', params={'p': item_id, 'h': '', 'c': 'ps'}).json()
+#         print(rc)
+#         if rc:
+#             ps = rc[0][1]
+#         else:
+#             ps = 0
+#
+#     if not platform:
+#         price = max([xbox, ps])
+#     elif platform == 'ps':
+#         price = ps
+#     elif platform == 'xbox':
+#         price = xbox
+#
+#     return price

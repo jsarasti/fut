@@ -464,7 +464,7 @@ class Core(object):
         else:
             raise FutError(reason='Invalid emulate parameter. (Valid ones are and/ios).')  # pc/ps3/xbox/
         self.sku = sku  # TODO: use self.sku in all class
-        self.sku_a = 'FFT18'
+        self.sku_b = 'FFT18'
 
         # === launch futweb
         params = {'accessToken': self.access_token,
@@ -556,7 +556,7 @@ class Core(object):
                 'priorityLevel': 4,
                 'identification': {'authCode': auth_code,
                                    'redirectUrl': 'nucleus:rest'}}
-        params = {'sku_a': self.sku_a,
+        params = {'sku_b': self.sku_b,
                   '': int(time.time() * 1000)}
         rc = self.r.post('https://%s/ut/auth' % self.fut_host, data=json.dumps(data), params=params, timeout=self.timeout)
         if rc.status_code == 401:  # and rc.text == 'multiple session'
@@ -708,6 +708,7 @@ class Core(object):
             rc = self.r.delete(url, data=data, params=params, timeout=self.timeout)
         self.logger.debug("response: {0}".format(rc.content))
         if not rc.ok:  # status != 200
+            # TODO: catch all error codes https://gist.github.com/oczkers/cebecbf4c6a4362a843424edb443ba59
             if rc.status_code == 401:
                 # TODO?: send pinEvent https://gist.github.com/oczkers/7e5de70915b87262ddea961c49180fd6
                 raise ExpiredSession()
@@ -1022,7 +1023,7 @@ class Core(object):
                 return False  # TODO: add exceptions
         data = {'bid': bid}
         try:
-            rc = self.__request__(method, url, data=json.dumps(data), params={'sku_a': self.sku_a}, fast=fast)['auctionInfo'][0]
+            rc = self.__request__(method, url, data=json.dumps(data), params={'sku_b': self.sku_b}, fast=fast)['auctionInfo'][0]
         except PermissionDenied:  # too slow, somebody took it already :-(
             return False
         if rc['bidState'] == 'highest' or (rc['tradeState'] == 'closed' and rc['bidState'] == 'buyNow'):  # checking 'tradeState' is required?
@@ -1213,7 +1214,7 @@ class Core(object):
 
         # TODO: auto send to tradepile
         data = {'buyNowPrice': buy_now, 'startingBid': bid, 'duration': duration, 'itemData': {'id': item_id}}
-        rc = self.__request__(method, url, data=json.dumps(data), params={'sku_a': self.sku_a})
+        rc = self.__request__(method, url, data=json.dumps(data), params={'sku_b': self.sku_b})
         if not fast:  # tradeStatus check like webapp do
             self.tradeStatus(rc['id'])
         return rc['id']
@@ -1224,7 +1225,7 @@ class Core(object):
         :params item_id: Item id.
         """
         method = 'DELETE'
-        url = 'item/%s' % item_id
+        url = 'item'
 
         if not isinstance(item_id, (list, tuple)):
             item_id = (item_id,)
@@ -1434,6 +1435,14 @@ class Core(object):
     #     """
     #     url = '{0}/{1}'.format(self.urls['fut']['ActiveMessage'], message_id)
     #     self.__delete__(url)
+
+    def packs(self):
+        """List all (currently?) available packs."""
+        method = 'GET'
+        url = 'store/purchaseGroup/cardpack'
+
+        params = {'ppInfo': True}
+        return self.__request__(method, url, params=params)  # TODO: parse
 
     def buyPack(self, pack_id, currency='COINS'):
         # TODO: merge with openPack
