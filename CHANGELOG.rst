@@ -4,6 +4,33 @@ Changelog
 ---------
 
 
+0.4.2 (2018-10-??)
+^^^^^^^^^^^^^^^^^^
+
+* correct page_size/count values (thanks to derSoerrn95 #427)
+
+0.4.1 (2018-10-07)
+^^^^^^^^^^^^^^^^^^
+
+* add more pinevents (Hub)
+* update card_info_url
+* bump user agent
+
+0.4.0 (2018-10-06)
+^^^^^^^^^^^^^^^^^^
+
+* first fifa19 stable release
+
+0.3.11 (2018-04-22)
+^^^^^^^^^^^^^^^^^^^
+
+* simple fixes for futbin and futhead
+* add ability to send multiple items to pile (#383)
+* correct transfer market status check (#392)
+* track the number of requests that have been made (thanks to flipdazed #402)
+* fix level value when searching club (thanks to Krato123)
+* no more nationalities in players
+
 0.3.10 (2017-12-22)
 ^^^^^^^^^^^^^^^^^^^
 

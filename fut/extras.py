@@ -10,6 +10,8 @@ This module implements the fut's additional methods.
 
 import requests
 import time
+#from simplejson.scanner import JSONDecodeError
+from json import JSONDecodeError
 
 # python2 fix
 try:
@@ -35,11 +37,8 @@ def futheadPrice(item_id, year=18, platform=None):
     if not rc:
         return 0
     rc = rc[str(item_id)]
-    if 'xbLowFive' in rc:
-        xbox = rc['xbLowFive'][0]
-    else:
-        xbox = 0
-    ps = rc['psLowFive'][0]
+    xbox = rc.get('xbLowFive', [0])[0]
+    ps = rc.get('psLowFive', [0])[0]
 
     if platform == 'xbox':
         price = xbox
